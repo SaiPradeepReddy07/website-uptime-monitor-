@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uptime — Website Uptime Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--page:#f3f6f9;--ink:#0f172a;--muted:hsl(215,25%,32%);--line:#d8e0ea;--card:#fff;--up:#16895c;--down:#c8332d;--accent:#2563eb;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--page:#0b1220;--ink:#eaf0f8;--muted:#9fb0c8;--line:#22314a;--card:#111b2d;--up:#34c58a;--down:#f0605a;--accent:#6b9bff;color-scheme:dark}}
+:root[data-theme="dark"]{--page:#0b1220;--ink:#eaf0f8;--muted:#9fb0c8;--line:#22314a;--card:#111b2d;--up:#34c58a;--down:#f0605a;--accent:#6b9bff;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:400 16px/1.6 "Inter",system-ui,sans-serif}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px;border-radius:9999px}
+.stage{position:relative;min-height:100svh;min-height:100vh;display:flex;flex-direction:column;overflow:hidden;background:#06091a;color:#fff}
+#tubes{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+nav,.hero{position:relative;z-index:2;pointer-events:none}
+nav a,nav button,.hero a,.hero button{pointer-events:auto}
+nav{width:100%;max-width:1280px;margin:0 auto;padding:24px 32px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.logo{font:400 30px/1 "Instrument Serif",serif;color:#fff;text-decoration:none}
+.logo sup{font-size:.4em;margin-left:2px}
+.links{display:none;gap:40px;list-style:none;margin:0;padding:0}
+.links a{font:500 14px "Inter",sans-serif;color:#fff;text-decoration:none}
+.links a:hover{text-decoration:underline;text-underline-offset:4px}
+.right{justify-self:end;display:flex;gap:12px;align-items:center}
+.who{font-size:14px;display:none}
+.pill{display:inline-block;border:0;border-radius:9999px;background:#fff;color:#000;font:500 14px "Inter",sans-serif;padding:10px 24px;text-decoration:none;cursor:pointer;transition:transform 200ms ease-in-out}
+.pill.dark{background:#000;color:#fff}
+.pill:hover{transform:scale(1.03)}
+.pill.lg{font-size:16px;padding:20px 56px}
+.hero{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;max-width:1280px;width:100%;margin:0 auto;padding:32px}
+h1{font:400 48px/.95 "Instrument Serif",serif;letter-spacing:-2.46px;margin:0;max-width:14ch;text-shadow:0 0 30px rgba(0,0,0,.6)}
+h1 em{font-style:normal;color:#b9c6ff}
+.hero p{font-size:18px;line-height:1.625;color:#d5dcf0;max-width:670px;margin:24px 0 0;text-shadow:0 0 18px rgba(0,0,0,.7)}
+.hero .pill{margin-top:48px}
+.hint{font-size:13px;color:#a8b3d3;margin-top:28px}
+.rise{opacity:0;transform:translateY(24px);animation:fade-rise .8s ease-out forwards}
+.d2{animation-delay:.2s}.d4{animation-delay:.4s}
+@keyframes fade-rise{to{opacity:1;transform:none}}
+.sec{max-width:1280px;margin:0 auto;padding:96px 32px 0}
+.sec h2{font:400 clamp(36px,5vw,56px)/1 "Instrument Serif",serif;letter-spacing:-1.5px;margin:0 0 32px;max-width:16ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:40px}
+.cols div{border-top:1px solid var(--line);padding-top:20px}
+.cols h3{font:400 26px/1.1 "Instrument Serif",serif;margin:0 0 8px}
+.cols p,.muted{margin:0;color:var(--muted)}
+.panel{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:24px;max-width:760px}
+.add{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+input{flex:1;min-width:200px;padding:12px 16px;border-radius:9999px;border:1.5px solid var(--line);background:var(--page);color:var(--ink);font:inherit}
+.site{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.site:last-child{border-bottom:0}
+.badge{font-weight:500;font-size:13px;padding:2px 10px;border-radius:9999px;border:1.5px solid currentColor;margin-right:10px}
+.up{color:var(--up)}.down{color:var(--down)}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:14px;text-decoration:underline;cursor:pointer;padding:4px}
+.err{color:var(--down);font-size:14px;margin:8px 0 0;min-height:1.2em}
+dialog{border:1px solid var(--line);border-radius:24px;background:var(--card);color:var(--ink);padding:28px;width:min(420px,92vw)}
+dialog::backdrop{background:rgba(5,8,20,.6)}
+dialog h2{font:400 36px/1 "Instrument Serif",serif;margin:0 0 6px}
+.tabs{display:flex;gap:6px;margin:18px 0}
+.tabs button{flex:1;padding:10px;border-radius:9999px;border:1.5px solid var(--line);background:transparent;color:var(--ink);font:500 14px "Inter",sans-serif;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.field{display:block;margin-bottom:12px}
+.field span{display:block;font-size:14px;font-weight:500;margin-bottom:4px}
+.field input{width:100%}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+footer{max-width:1280px;margin:0 auto;padding:64px 32px 40px;color:var(--muted);font-size:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+footer a{color:inherit}
+@media (min-width:768px){.links{display:flex}.who{display:block}h1{font-size:80px;max-width:13ch}}
+@media (prefers-reduced-motion:reduce){.rise{animation:none;opacity:1;transform:none}.pill{transition:none}html{scroll-behavior:auto}}
+
+html:root:root:root{--page:#06091a;--ink:#f1f4ff;--muted:#b4bfdc;--line:rgba(255,255,255,.2);--card:rgba(10,16,42,.74);--up:#34c58a;--down:#f0605a;--accent:#8fb0ff;color-scheme:dark}
+.stage{background:transparent}
+#tubes{position:fixed;z-index:0}
+.sec,footer{position:relative;z-index:2;pointer-events:none}
+.sec a,.sec button,.sec input,.panel,footer a{pointer-events:auto}
+.panel{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.ok{color:var(--up)}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="tubes" aria-hidden="true"></canvas>
+  <nav>
+    <a class="logo" href="#top">Uptime<sup>®</sup></a>
+    <ul class="links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#dashboard">Dashboard</a></li>
+      <li><a href="https://github.com/SaiPradeepReddy07/Website-Uptime-Monitor" target="_blank" rel="noopener">Source</a></li>
+    </ul>
+    <div class="right"><span class="who" id="who"></span><button class="pill" id="authBtn" type="button">Sign in</button></div>
+  </nav>
+  <header class="hero" id="top">
+    <h1 class="rise">Know the instant your site goes <em>down</em>.</h1>
+    <p class="rise d2">Create an account, add the sites you care about, and see whether each one is up and how fast it responds.</p>
+    <button class="pill dark lg rise d4" id="cta" type="button">Create your account</button>
+    <div class="hint rise d4">Move your cursor. Click anywhere to change the colors.</div>
+  </header>
+</div>
+
+<section class="sec" id="features">
+  <h2>Quiet when all is well. Clear when it isn’t.</h2>
+  <div class="cols">
+    <div><h3>Up or down</h3><p>Every check ends in a clear result, so you see a failing site the moment it fails.</p></div>
+    <div><h3>Response time</h3><p>Slow responses are flagged before they turn into outages.</p></div>
+    <div><h3>Your own list</h3><p>Your sites are saved to your account and are there when you sign back in.</p></div>
+  </div>
+</section>
+
+<section class="sec" id="dashboard">
+  <h2>Your dashboard</h2>
+  <div class="panel" id="gate">
+    <p class="muted" id="gateMsg">Sign in to see and manage your sites.</p>
+    <div class="add"><button class="pill dark" id="gateBtn" type="button">Sign in or register</button></div>
+  </div>
+  <div class="panel" id="app" hidden>
+    <p style="margin:0"><b id="hello"></b></p>
+    <p class="muted" style="font-size:14px">Your sites are checked every 5 minutes by a scheduled job. Results appear here automatically.</p>
+    <div id="list"></div>
+    <form class="add" id="addForm" novalidate>
+      <input id="siteIn" type="text" placeholder="Add a site, for example example.com" aria-label="Website address">
+      <button class="pill dark" type="submit">Add site</button>
+    </form>
+    <p class="err" id="siteErr" role="alert"></p>
+  </div>
+</section>
+
+<footer>
+  <span>Website Uptime Monitor by SaiPradeepReddy07</span>
+  <a href="https://github.com/SaiPradeepReddy07/Website-Uptime-Monitor" target="_blank" rel="noopener">Source on GitHub</a>
+</footer>
+
+<dialog id="dlg" aria-labelledby="dTitle">
+  <h2 id="dTitle">Welcome</h2>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" id="tabIn" aria-selected="true">Sign in</button>
+    <button type="button" role="tab" id="tabUp" aria-selected="false">Create account</button>
+  </div>
+  <form id="authForm" novalidate>
+    <label class="field" id="nameRow" hidden><span>Name</span><input id="fName" autocomplete="name"></label>
+    <label class="field"><span>Email</span><input id="fEmail" type="email" autocomplete="email"></label>
+    <label class="field"><span>Password</span><input id="fPass" type="password" autocomplete="current-password"></label>
+    <p class="err" id="authErr" role="alert"></p>
+    <div class="add"><button class="pill dark" id="submitBtn" type="submit">Sign in</button><button class="pill" style="background:transparent;color:var(--ink);border:1.5px solid var(--line)" type="button" id="closeBtn">Cancel</button></div>
+  </form>
+  <p class="note">Passwords are handled by Supabase Auth and are never stored in plain text.</p>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+/* 1. Paste your Supabase values here (Project Settings > API). The anon key is meant to be public. */
+var SUPABASE_URL="YOUR_SUPABASE_URL",SUPABASE_ANON_KEY="YOUR_SUPABASE_ANON_KEY";
+
+var $=function(i){return document.getElementById(i)};
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var sb=(!/^YOUR_/.test(SUPABASE_URL)&&window.supabase)?supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY):null;
+var me=null,sites=[],stat={},mode="in",poll=null;
+
+var dlg=$("dlg");
+function setMode(m){mode=m;$("tabIn").setAttribute("aria-selected",m==="in");$("tabUp").setAttribute("aria-selected",m==="up");$("nameRow").hidden=m==="in";$("submitBtn").textContent=m==="in"?"Sign in":"Create account";$("fPass").autocomplete=m==="in"?"current-password":"new-password";$("authErr").textContent=""}
+function openAuth(m){setMode(m);dlg.showModal();$("fEmail").focus()}
+$("tabIn").onclick=function(){setMode("in")};$("tabUp").onclick=function(){setMode("up")};
+$("closeBtn").onclick=function(){dlg.close()};
+$("cta").onclick=function(){me?$("dashboard").scrollIntoView():openAuth("up")};
+$("gateBtn").onclick=function(){openAuth("in")};
+$("authBtn").onclick=function(){me?sb.auth.signOut():openAuth("in")};
+
+$("authForm").addEventListener("submit",async function(e){
+  e.preventDefault();var err=$("authErr");err.textContent="";
+  if(!sb){err.textContent="Add your Supabase URL and key at the top of the script first. See SETUP.md.";return}
+  var email=$("fEmail").value.trim().toLowerCase(),pw=$("fPass").value,name=$("fName").value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent="Enter a valid email address.";return}
+  if(pw.length<8){err.textContent="Use a password with at least 8 characters.";return}
+  if(mode==="up"&&!name){err.textContent="Enter your name.";return}
+  var btn=$("submitBtn");btn.disabled=true;
+  try{
+    if(mode==="up"){
+      var r=await sb.auth.signUp({email:email,password:pw,options:{data:{name:name}}});
+      if(r.error){err.textContent=r.error.message;return}
+      if(!r.data.session){err.textContent="Check your email to confirm your account, then sign in.";return}
+    }else{
+      var r2=await sb.auth.signInWithPassword({email:email,password:pw});
+      if(r2.error){err.textContent=r2.error.message==="Invalid login credentials"?"Email or password is incorrect.":r2.error.message;return}
+    }
+    dlg.close();$("fPass").value="";$("dashboard").scrollIntoView();
+  }catch(x){err.textContent="Couldn’t reach the server. Try again."}
+  finally{btn.disabled=false}
+});
+
+function ui(){
+  var on=!!me,nm=on?(me.user_metadata&&me.user_metadata.name)||me.email:"";
+  $("authBtn").textContent=on?"Sign out":"Sign in";$("who").textContent=nm;
+  $("cta").textContent=on?"Open your dashboard":"Create your account";
+  $("gate").hidden=on;$("app").hidden=!on;
+  if(on){$("hello").textContent="Welcome, "+nm}
+  if(!sb)$("gateMsg").textContent="Setup needed: add your Supabase URL and key to this page. See SETUP.md.";
+}
+function ago(t){var m=Math.round((Date.now()-new Date(t))/60000);return m<1?"just now":m<60?m+" min ago":Math.round(m/60)+" h ago"}
+function renderList(){
+  $("list").innerHTML=sites.length?sites.map(function(s){
+    var r=stat[s.id],has=r&&r.checked_at;
+    var st=has?(r.up?'<span class="badge up">Up</span>':'<span class="badge down">Down</span>'):'<span class="badge">Pending</span>';
+    var info=has?((r.up?r.ms+' ms':'No response')+(r.uptime!=null?' · '+r.uptime+'% uptime (24h)':'')+' · checked '+ago(r.checked_at)):'First check runs within 5 minutes';
+    return '<div class="site"><span>'+st+esc(s.url)+' <span class="muted">'+info+'</span></span><button class="link" data-id="'+s.id+'" type="button">Remove</button></div>'
+  }).join(""):'<p class="muted">No sites yet. Add your first one below.</p>';
+}
+async function refresh(){
+  if(!me||!sb)return;
+  var a=await sb.from("sites").select("id,url").order("created_at");
+  if(a.error){$("siteErr").textContent="Couldn’t load your sites: "+a.error.message;return}
+  sites=a.data;
+  var p=await Promise.all([sb.from("site_status").select("*"),sb.from("site_stats").select("*")]);
+  stat={};(p[0].data||[]).forEach(function(r){stat[r.site_id]=r});
+  (p[1].data||[]).forEach(function(r){(stat[r.site_id]=stat[r.site_id]||{}).uptime=r.uptime});
+  renderList();
+}
+$("addForm").addEventListener("submit",async function(e){
+  e.preventDefault();var er=$("siteErr");er.className="err";er.textContent="";
+  var v=$("siteIn").value.trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/.*$/,"");
+  if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(v)){er.textContent="Enter a website address like example.com.";return}
+  var r=await sb.from("sites").insert({url:v});
+  if(r.error){er.textContent=r.error.code==="23505"?"That site is already on your list.":"Couldn’t add the site: "+r.error.message;return}
+  $("siteIn").value="";er.className="err ok";er.textContent="Added. The first check runs within 5 minutes.";refresh();
+});
+$("list").addEventListener("click",async function(e){
+  var id=e.target.getAttribute&&e.target.getAttribute("data-id");if(!id)return;
+  var r=await sb.from("sites").delete().eq("id",id);
+  if(r.error){$("siteErr").textContent="Couldn’t remove the site: "+r.error.message;return}
+  refresh();
+});
+ui();
+if(sb){
+  sb.auth.getSession().then(function(r){me=r.data.session?r.data.session.user:null;ui();refresh()});
+  sb.auth.onAuthStateChange(function(_e,session){me=session?session.user:null;ui();clearInterval(poll);if(me){refresh();poll=setInterval(refresh,30000)}else{sites=[];stat={}}});
+}
+})();
+</script>
+
+<script type="module">
+var reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+if(!reduce){
+  var rnd=function(n){return Array.from({length:n},function(){return "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,"0")})};
+  import("https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js").then(function(m){
+    var app=m.default(document.getElementById("tubes"),{tubes:{colors:["#f967fb","#53bc28","#6958d5"],lights:{intensity:200,colors:["#83f36e","#fe8a2e","#ff008a","#60aed5"]}}});
+    document.addEventListener("click",function(e){
+      if(e.target.closest("a,button,input,dialog,.panel"))return;
+      app.tubes.setColors(rnd(3));app.tubes.setLightsColors(rnd(4));
+    });
+  }).catch(function(){});
+}
+</script>
+</body>
+</html>
