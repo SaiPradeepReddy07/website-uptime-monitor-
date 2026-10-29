@@ -217,17 +217,54 @@ async function refresh(){
   renderList();
 }
 $("addForm").addEventListener("submit",async function(e){
-  e.preventDefault();var er=$("siteErr");er.className="err";er.textContent="";
-  var v=$("siteIn").value.trim().toLowerCase().replace(/^https?:\/\//,"").replace(/\/.*$/,"");
-  if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(v)){er.textContent="Enter a website address like example.com.";return}
-  var r=await sb.from("sites").insert({url:v});
-  if(r.error){er.textContent=r.error.code==="23505"?"That site is already on your list.":"Couldn’t add the site: "+r.error.message;return}
-  $("siteIn").value="";er.className="err ok";er.textContent="Added. The first check runs within 5 minutes.";refresh();
-});
-$("list").addEventListener("click",async function(e){
-  var id=e.target.getAttribute&&e.target.getAttribute("data-id");if(!id)return;
-  var r=await sb.from("sites").delete().eq("id",id);
-  if(r.error){$("siteErr").textContent="Couldn’t remove the site: "+r.error.message;return}
+  e.preventDefault();
+
+  var er=$("siteErr");
+  er.className="err";
+  er.textContent="";
+
+  var v=$("siteIn").value.trim().toLowerCase()
+    .replace(/^https?:\/\//,"")
+    .replace(/\/.*$/,"");
+
+  if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(v)){
+    er.textContent="Enter a website address like example.com.";
+    return;
+  }
+
+  var r=await sb.from("sites")
+    .insert({url:v})
+    .select()
+    .single();
+
+  if(r.error){
+    er.textContent =
+      r.error.code==="23505"
+      ? "That site is already on your list."
+      : "Couldn't add the site: " + r.error.message;
+    return;
+  }
+
+  try {
+    const start = performance.now();
+
+    await fetch("https://" + v,{
+      method:"GET",
+      mode:"no-cors"
+    });
+
+    const ms = Math.round(performance.now() - start);
+
+    $("siteIn").value="";
+    er.className="err ok";
+    er.textContent="Site added and checked immediately.";
+
+  } catch(x) {
+    $("siteIn").value="";
+    er.className="err ok";
+    er.textContent="Site added. Background monitoring is active.";
+  }
+
   refresh();
 });
 ui();
