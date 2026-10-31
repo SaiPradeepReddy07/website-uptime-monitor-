@@ -115,7 +115,7 @@ html:root:root:root{--page:#06091a;--ink:#f1f4ff;--muted:#b4bfdc;--line:rgba(255
   </div>
   <div class="panel" id="app" hidden>
     <p style="margin:0"><b id="hello"></b></p>
-    <p class="muted" style="font-size:14px">Your sites are checked every 5 minutes by a scheduled job. Results appear here automatically.</p>
+    <p class="muted" style="font-size:14px">Your sites are checked every minute by Supabase Cron. Results appear here automatically.</p>
     <div id="list"></div>
     <form class="add" id="addForm" novalidate>
       <input id="siteIn" type="text" placeholder="Add a site, for example example.com" aria-label="Website address">
@@ -202,7 +202,7 @@ function renderList(){
   $("list").innerHTML=sites.length?sites.map(function(s){
     var r=stat[s.id],has=r&&r.checked_at,checking=r&&r.checking,failed=r&&r.check_error;
     var st=checking?'<span class="badge">Checking</span>':failed?'<span class="badge">Check unavailable</span>':has?(r.up?'<span class="badge up">Up</span>':'<span class="badge down">Down</span>'):'<span class="badge">Pending</span>';
-    var info=checking?'Checking now…':failed?'Instant check unavailable; scheduled check will retry within 5 minutes':has?((r.up?r.ms+' ms':'No response')+(r.uptime!=null?' · '+r.uptime+'% uptime (24h)':'')+' · checked '+ago(r.checked_at)):'First check runs within 5 minutes';
+    var info=checking?'Checking now…':failed?'Instant check unavailable; scheduled check will retry within 1 minute':has?((r.up?r.ms+' ms':'No response')+(r.uptime!=null?' · '+r.uptime+'% uptime (24h)':'')+' · checked '+ago(r.checked_at)):'First check runs within 1 minute';
     return '<div class="site"><span>'+st+esc(s.url)+' <span class="muted">'+info+'</span></span><button class="link" data-id="'+s.id+'" type="button">Remove</button></div>'
   }).join(""):'<p class="muted">No sites yet. Add your first one below.</p>';
 }
@@ -302,14 +302,14 @@ $("addForm").addEventListener("submit",async function(e){
     renderList();
     er.className="err ok";
     er.textContent=check.data.up
-      ?"Site is up · "+check.data.ms+" ms. Next check runs in 5 minutes."
-      :"Site is down"+(check.data.ms!=null?" · "+check.data.ms+" ms":" · no response")+". Next check runs in 5 minutes.";
+      ?"Site is up · "+check.data.ms+" ms. Next check runs in 1 minute."
+      :"Site is down"+(check.data.ms!=null?" · "+check.data.ms+" ms":" · no response")+". Next check runs in 1 minute.";
     await refresh();
   }catch(x){
     stat[site.id]={check_error:true};
     renderList();
     er.className="err";
-    er.textContent="Site added, but the instant check could not run. The scheduled check will retry within 5 minutes.";
+    er.textContent="Site added, but the instant check could not run. The scheduled check will retry within 1 minute.";
   }
 });
 ui();
