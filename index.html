@@ -165,7 +165,7 @@ $("tabIn").onclick=function(){setMode("in")};$("tabUp").onclick=function(){setMo
 $("closeBtn").onclick=function(){dlg.close()};
 $("cta").onclick=function(){me?$("dashboard").scrollIntoView():openAuth("up")};
 $("gateBtn").onclick=function(){openAuth("in")};
-$("authBtn").onclick=async function(){if(!me){openAuth("in");return}try{var out=await sb.auth.signOut();if(out.error)await sb.auth.signOut({scope:"local"})}catch(_){await sb.auth.signOut({scope:"local"})}};
+$("authBtn").onclick=function(){me?sb.auth.signOut({scope:"local"}):openAuth("in")};
 
 $("authForm").addEventListener("submit",async function(e){
   e.preventDefault();var err=$("authErr");err.textContent="";
