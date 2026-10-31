@@ -1,0 +1,4 @@
+project_id = "ienoxjulgopijzovqoma"
+
+[functions.swift-function]
+verify_jwt = true
