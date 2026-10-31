@@ -1,4 +1,4 @@
-// Checks every saved site and records the result. Runs on GitHub Actions.
+// Checks every saved site and records the result when manually run from GitHub Actions.
 const URL_ = process.env.SUPABASE_URL, KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!URL_ || !KEY) { console.error("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY"); process.exit(1); }
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
