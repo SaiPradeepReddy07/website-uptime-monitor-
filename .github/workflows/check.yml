@@ -1,4 +1,4 @@
-name: Check sites
+name: Check sites (manual)
 
 on:
   schedule:
