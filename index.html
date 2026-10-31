@@ -207,14 +207,43 @@ function renderList(){
   }).join(""):'<p class="muted">No sites yet. Add your first one below.</p>';
 }
 async function refresh(){
-  if(!me||!sb)return;
-  var a=await sb.from("sites").select("id,url").order("created_at");
-  if(a.error){$("siteErr").textContent="Couldn’t load your sites: "+a.error.message;return}
-  sites=a.data;
-  var p=await Promise.all([sb.from("site_status").select("*"),sb.from("site_stats").select("*")]);
-  stat={};(p[0].data||[]).forEach(function(r){stat[r.site_id]=r});
-  (p[1].data||[]).forEach(function(r){(stat[r.site_id]=stat[r.site_id]||{}).uptime=r.uptime});
-  renderList();
+}
+
+async function checkNow(siteId, url) {
+  const started = Date.now();
+
+  try {
+    const target = url.startsWith("http")
+      ? url
+      : "https://" + url;
+
+    await fetch(target, {
+      method: "GET",
+      mode: "no-cors"
+    });
+
+    const ms = Date.now() - started;
+
+    await sb.from("checks").insert({
+      site_id: siteId,
+      up: true,
+      status: 200,
+      ms: ms
+    });
+
+  } catch (err) {
+
+    await sb.from("checks").insert({
+      site_id: siteId,
+      up: false,
+      status: null,
+      ms: null
+    });
+
+  }
+}
+
+$("addForm").addEventListener("submit",async function(e){
 }
 $("addForm").addEventListener("submit",async function(e){
   e.preventDefault();
@@ -238,14 +267,31 @@ $("addForm").addEventListener("submit",async function(e){
     .single();
 if(!r.error){
 
+  const res = await fetch(
+    "https://ienoxjulgopijzovqoma.supabase.co/functions/v1/swift-function",
+    {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        site_id:r.data.id,
+        url:r.data.url
+      })
+    }
+  );
+
+  const result = await response.json();
+
   await sb.from("checks").insert({
     site_id: r.data.id,
-    up: true,
-    status: 200,
-    ms: 100
+    up: result.up,
+    status: result.status,
+    ms: result.ms
   });
 
-  }
+}
+ 
 
   try {
     const start = performance.now();
