@@ -206,6 +206,29 @@ function renderList(){
     return '<div class="site"><span>'+st+esc(s.url)+' <span class="muted">'+info+'</span></span><button class="link" data-id="'+s.id+'" type="button">Remove</button></div>'
   }).join(""):'<p class="muted">No sites yet. Add your first one below.</p>';
 }
+$("list").addEventListener("click",async function(e){
+  var btn=e.target.closest("button[data-id]");
+  if(!btn||!sb||!me)return;
+  var id=btn.getAttribute("data-id");
+  if(!sites.some(function(site){return site.id===id}))return;
+  btn.disabled=true;
+  var er=$("siteErr");
+  er.className="err";
+  er.textContent="";
+  try{
+    var removed=await sb.from("sites").delete().eq("id",id).select("id").single();
+    if(removed.error)throw removed.error;
+    sites=sites.filter(function(site){return site.id!==id});
+    delete stat[id];
+    renderList();
+    er.className="err ok";
+    er.textContent="Site removed.";
+  }catch(error){
+    btn.disabled=false;
+    er.textContent="Could not remove site: "+(error.message||"Try again.");
+  }
+});
+
 async function refresh(){
   if(!sb||!me)return;
   try{
