@@ -200,9 +200,9 @@ function ui(){
 function ago(t){var m=Math.round((Date.now()-new Date(t))/60000);return m<1?"just now":m<60?m+" min ago":Math.round(m/60)+" h ago"}
 function renderList(){
   $("list").innerHTML=sites.length?sites.map(function(s){
-    var r=stat[s.id],has=r&&r.checked_at;
-    var st=has?(r.up?'<span class="badge up">Up</span>':'<span class="badge down">Down</span>'):'<span class="badge">Pending</span>';
-    var info=has?((r.up?r.ms+' ms':'No response')+(r.uptime!=null?' · '+r.uptime+'% uptime (24h)':'')+' · checked '+ago(r.checked_at)):'First check runs within 5 minutes';
+    var r=stat[s.id],has=r&&r.checked_at,checking=r&&r.checking,failed=r&&r.check_error;
+    var st=checking?'<span class="badge">Checking</span>':failed?'<span class="badge">Check unavailable</span>':has?(r.up?'<span class="badge up">Up</span>':'<span class="badge down">Down</span>'):'<span class="badge">Pending</span>';
+    var info=checking?'Checking now…':failed?'Instant check unavailable; scheduled check will retry within 5 minutes':has?((r.up?r.ms+' ms':'No response')+(r.uptime!=null?' · '+r.uptime+'% uptime (24h)':'')+' · checked '+ago(r.checked_at)):'First check runs within 5 minutes';
     return '<div class="site"><span>'+st+esc(s.url)+' <span class="muted">'+info+'</span></span><button class="link" data-id="'+s.id+'" type="button">Remove</button></div>'
   }).join(""):'<p class="muted">No sites yet. Add your first one below.</p>';
 }
@@ -231,40 +231,6 @@ async function refresh(){
     renderList();
   }catch(x){
     $("list").innerHTML='<p class="err">Could not load sites: '+esc(x.message||"Try again.")+'</p>';
-  }
-}
-
-async function checkNow(siteId, url) {
-  const started = Date.now();
-
-  try {
-    const target = url.startsWith("http")
-      ? url
-      : "https://" + url;
-
-    await fetch(target, {
-      method: "GET",
-      mode: "no-cors"
-    });
-
-    const ms = Date.now() - started;
-
-    await sb.from("checks").insert({
-      site_id: siteId,
-      up: true,
-      status: 200,
-      ms: ms
-    });
-
-  } catch (err) {
-
-    await sb.from("checks").insert({
-      site_id: siteId,
-      up: false,
-      status: null,
-      ms: null
-    });
-
   }
 }
 
@@ -297,10 +263,31 @@ $("addForm").addEventListener("submit",async function(e){
     return;
   }
 
+  var site=r.data;
+  sites.unshift(site);
+  stat[site.id]={checking:true};
   $("siteIn").value="";
-  er.className="err ok";
-  er.textContent="Site added. Background monitoring is active.";
-  refresh();
+  renderList();
+  er.className="err";
+  er.textContent="Site added. Checking now…";
+
+  try{
+    var check=await sb.functions.invoke("swift-function",{body:{site_id:site.id}});
+    if(check.error)throw check.error;
+    if(!check.data||typeof check.data.up!=="boolean")throw new Error("No check result returned.");
+    stat[site.id]=check.data;
+    renderList();
+    er.className="err ok";
+    er.textContent=check.data.up
+      ?"Site is up · "+check.data.ms+" ms. Next check runs in 5 minutes."
+      :"Site is down"+(check.data.ms!=null?" · "+check.data.ms+" ms":" · no response")+". Next check runs in 5 minutes.";
+    await refresh();
+  }catch(x){
+    stat[site.id]={check_error:true};
+    renderList();
+    er.className="err";
+    er.textContent="Site added, but the instant check could not run. The scheduled check will retry within 5 minutes.";
+  }
 });
 ui();
 if(sb){
