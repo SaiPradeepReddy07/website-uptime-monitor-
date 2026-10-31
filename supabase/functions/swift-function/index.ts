@@ -16,7 +16,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 function isPrivateHost(hostname: string): boolean {
-  const host = hostname.replace(/^\\[|\\]$/g, "").toLowerCase();
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
   if (
     host === "localhost" ||
     host.endsWith(".localhost") ||
@@ -25,7 +25,7 @@ function isPrivateHost(hostname: string): boolean {
   ) return true;
 
   const parts = host.split(".");
-  if (parts.length === 4 && parts.every((part) => /^\\d+$/.test(part))) {
+  if (parts.length === 4 && parts.every((part) => /^\d+$/.test(part))) {
     const [a, b] = parts.map(Number);
     if (parts.some((part) => Number(part) > 255)) return true;
     return a === 0 || a === 10 || a === 127 ||
@@ -44,7 +44,7 @@ function isPrivateHost(hostname: string): boolean {
 
 function targetUrl(rawUrl: string): URL | null {
   try {
-    const target = new URL(/^https?:\\/\\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
+    const target = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
     if (!["http:", "https:"].includes(target.protocol) || isPrivateHost(target.hostname)) return null;
     return target;
   } catch {
