@@ -207,6 +207,31 @@ function renderList(){
   }).join(""):'<p class="muted">No sites yet. Add your first one below.</p>';
 }
 async function refresh(){
+  if(!sb||!me)return;
+  try{
+    var sr=await sb.from("sites").select("id,url,created_at").order("created_at",{ascending:false});
+    if(sr.error)throw sr.error;
+    sites=sr.data||[];
+    stat={};
+    if(sites.length){
+      var ids=sites.map(function(s){return s.id});
+      var results=await Promise.all([
+        sb.from("site_status").select("site_id,up,status,ms,checked_at").in("site_id",ids),
+        sb.from("site_stats").select("site_id,uptime,avg_ms").in("site_id",ids)
+      ]);
+      if(results[0].error)throw results[0].error;
+      if(results[1].error)throw results[1].error;
+      (results[0].data||[]).forEach(function(r){
+        stat[r.site_id]=Object.assign(stat[r.site_id]||{},r);
+      });
+      (results[1].data||[]).forEach(function(r){
+        stat[r.site_id]=Object.assign(stat[r.site_id]||{},r);
+      });
+    }
+    renderList();
+  }catch(x){
+    $("list").innerHTML='<p class="err">Could not load sites: '+esc(x.message||"Try again.")+'</p>';
+  }
 }
 
 async function checkNow(siteId, url) {
@@ -266,7 +291,9 @@ $("addForm").addEventListener("submit",async function(e){
 
   var r=await sb.from("sites").insert({url:v}).select().single();
   if(r.error){
-    er.textContent=r.error.message;
+    er.textContent=r.error.code==="23505"||/sites_user_id_url_key|duplicate key/i.test(r.error.message||"")
+      ?"That site is already on your list."
+      :r.error.message;
     return;
   }
 
