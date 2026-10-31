@@ -266,7 +266,9 @@ $("addForm").addEventListener("submit",async function(e){
     .select()
     .single();
 if(!r.error){
-
+  refresh();
+}
+  
   const res = await fetch(
     "https://ienoxjulgopijzovqoma.supabase.co/functions/v1/swift-function",
     {
