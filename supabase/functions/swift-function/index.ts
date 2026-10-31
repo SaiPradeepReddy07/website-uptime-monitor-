@@ -16,7 +16,7 @@ function json(data: unknown, status = 200): Response {
 }
 
 function isPrivateHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const host = hostname.replace(/^\\[|\\]$/g, "").toLowerCase();
   if (
     host === "localhost" ||
     host.endsWith(".localhost") ||
@@ -25,7 +25,7 @@ function isPrivateHost(hostname: string): boolean {
   ) return true;
 
   const parts = host.split(".");
-  if (parts.length === 4 && parts.every((part) => /^\d+$/.test(part))) {
+  if (parts.length === 4 && parts.every((part) => /^\\d+$/.test(part))) {
     const [a, b] = parts.map(Number);
     if (parts.some((part) => Number(part) > 255)) return true;
     return a === 0 || a === 10 || a === 127 ||
@@ -40,6 +40,57 @@ function isPrivateHost(hostname: string): boolean {
     host.startsWith("fc") ||
     host.startsWith("fd") ||
     host.startsWith("fe80:");
+}
+
+function targetUrl(rawUrl: string): URL | null {
+  try {
+    const target = new URL(/^https?:\\/\\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
+    if (!["http:", "https:"].includes(target.protocol) || isPrivateHost(target.hostname)) return null;
+    return target;
+  } catch {
+    return null;
+  }
+}
+
+async function ping(target: URL): Promise<{ up: boolean; status: number | null; ms: number | null }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  const started = performance.now();
+  try {
+    const response = await fetch(target.href, {
+      method: "GET",
+      redirect: "manual",
+      signal: controller.signal,
+      headers: { "User-Agent": "website-uptime-monitor" },
+    });
+    return {
+      up: response.status < 400,
+      status: response.status,
+      ms: Math.round(performance.now() - started),
+    };
+  } catch {
+    return { up: false, status: null, ms: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function mapWithConcurrency<T, R>(
+  values: T[],
+  limit: number,
+  run: (value: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(values.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, values.length) }, async () => {
+    while (true) {
+      const index = next++;
+      if (index >= values.length) return;
+      results[index] = await run(values[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 Deno.serve(async (req) => {
@@ -58,6 +109,71 @@ Deno.serve(async (req) => {
     console.error("Missing Supabase function environment");
     return json({ error: "Instant checks are not configured." }, 500);
   }
+
+  const scheduledSecret = req.headers.get("x-uptime-cron-secret");
+  if (scheduledSecret) {
+    try {
+      const validation = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/verify_uptime_cron_secret`,
+        {
+          method: "POST",
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ candidate: scheduledSecret }),
+        },
+      );
+      if (!validation.ok || await validation.json() !== true) {
+        return json({ error: "Unauthorized scheduler request." }, 401);
+      }
+
+      const siteResponse = await fetch(
+        `${supabaseUrl}/rest/v1/sites?select=id,url`,
+        { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+      );
+      if (!siteResponse.ok) {
+        console.error("Could not load sites for scheduled check:", siteResponse.status);
+        return json({ error: "Could not load sites for scheduled check." }, 500);
+      }
+
+      const sites = await siteResponse.json();
+      const rows = await mapWithConcurrency(
+        sites,
+        8,
+        async (site: { id: string; url: string }) => {
+          const target = targetUrl(String(site.url || ""));
+          const result = target
+            ? await ping(target)
+            : { up: false, status: null, ms: null };
+          return { site_id: site.id, ...result };
+        },
+      );
+
+      if (rows.length) {
+        const saved = await fetch(`${supabaseUrl}/rest/v1/checks`, {
+          method: "POST",
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify(rows),
+        });
+        if (!saved.ok) {
+          console.error("Could not save scheduled checks:", saved.status);
+          return json({ error: "Could not save scheduled checks." }, 500);
+        }
+      }
+      return json({ checked: rows.length });
+    } catch (error) {
+      console.error("Scheduled check failed:", error);
+      return json({ error: "Scheduled check failed." }, 500);
+    }
+  }
+
   if (!authorization?.startsWith("Bearer ")) {
     return json({ error: "Sign in to check this site." }, 401);
   }
@@ -77,7 +193,6 @@ Deno.serve(async (req) => {
       return json({ error: "A valid site id is required." }, 400);
     }
 
-    // The user-scoped query applies the site's existing RLS ownership policy.
     const siteResponse = await fetch(
       `${supabaseUrl}/rest/v1/sites?id=eq.${encodeURIComponent(siteId)}&select=id,url&limit=1`,
       { headers: { apikey: anonKey, Authorization: authorization } },
@@ -90,35 +205,10 @@ Deno.serve(async (req) => {
       return json({ error: "Site not found for this account." }, 404);
     }
 
-    const rawUrl = String(sites[0].url || "");
-    const target = new URL(/^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`);
-    if (!["http:", "https:"].includes(target.protocol) || isPrivateHost(target.hostname)) {
-      return json({ error: "This site address cannot be checked." }, 400);
-    }
+    const target = targetUrl(String(sites[0].url || ""));
+    if (!target) return json({ error: "This site address cannot be checked." }, 400);
 
-    let result: { up: boolean; status: number | null; ms: number | null };
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
-    const started = performance.now();
-    try {
-      const response = await fetch(target.href, {
-        method: "GET",
-        redirect: "manual",
-        signal: controller.signal,
-        headers: { "User-Agent": "website-uptime-monitor" },
-      });
-      result = {
-        up: response.status < 400,
-        status: response.status,
-        ms: Math.round(performance.now() - started),
-      };
-    } catch {
-      result = { up: false, status: null, ms: null };
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    // Only the server function writes check rows; service credentials never reach the browser.
+    const result = await ping(target);
     const saved = await fetch(`${supabaseUrl}/rest/v1/checks?select=checked_at`, {
       method: "POST",
       headers: {
