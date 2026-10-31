@@ -256,10 +256,10 @@ $("addForm").addEventListener("submit",async function(e){
   }
 
   var v=$("siteIn").value.trim().toLowerCase()
-    .replace(/^https?:\\/\\//,"")
-    .replace(/\\/.*$/,"");
+    .replace(/^https?:\/\//,"")
+    .replace(/\/.*$/,"");
 
-  if(!/^[a-z0-9-]+(\\.[a-z0-9-]+)+$/.test(v)){
+  if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(v)){
     er.textContent="Enter a website address like example.com.";
     return;
   }
