@@ -8,12 +8,12 @@ Monitor website availability, response times, and uptime from a simple dashboard
 
 User registration and login with Supabase Authentication
 Add and manage websites to monitor
-Automatic uptime checks every 5 minutes
+Automatic uptime checks every minute
 Real-time status tracking
 Website response time monitoring
 Uptime statistics
 Responsive user interface
-GitHub Actions powered monitoring
+Supabase Cron powered monitoring
 Tech Stack
 Frontend
 HTML5
@@ -31,7 +31,7 @@ Node.js
 
 Users create an account or sign in.
 Users add websites they want to monitor.
-GitHub Actions runs every 5 minutes.
+Supabase Cron invokes the checker every minute.
 The monitoring script checks each website.
 Results are stored in Supabase.
 The dashboard displays:
@@ -77,7 +77,7 @@ SUPABASE_SERVICE_KEY
 Under:
 Repository Settings → Secrets and Variables → Actions
 4. Enable GitHub Actions
-The monitoring workflow runs automatically every 5 minutes:
+Supabase Cron checks sites automatically every minute; GitHub Actions remains available for manual runs:
 SEO
 
 **The project includes:**
