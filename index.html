@@ -250,69 +250,29 @@ $("addForm").addEventListener("submit",async function(e){
   er.className="err";
   er.textContent="";
 
-  var v=$("siteIn").value.trim().toLowerCase()
-    .replace(/^https?:\/\//,"")
-    .replace(/\/.*$/,"");
+  if(!sb||!me){
+    er.textContent="Sign in to add a site.";
+    return;
+  }
 
-  if(!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(v)){
+  var v=$("siteIn").value.trim().toLowerCase()
+    .replace(/^https?:\\/\\//,"")
+    .replace(/\\/.*$/,"");
+
+  if(!/^[a-z0-9-]+(\\.[a-z0-9-]+)+$/.test(v)){
     er.textContent="Enter a website address like example.com.";
     return;
   }
 
-  var r=await sb.from("sites")
-    .insert({url:v})
-    .select()
-    .single();
-if(!r.error){
-  refresh();
-}
-  
-  const res = await fetch(
-    "https://ienoxjulgopijzovqoma.supabase.co/functions/v1/swift-function",
-    {
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        site_id:r.data.id,
-        url:r.data.url
-      })
-    }
-  );
-
-  const result = await response.json();
-
-  await sb.from("checks").insert({
-    site_id: r.data.id,
-    up: result.up,
-    status: result.status,
-    ms: result.ms
-  });
-
-}
- 
-
-  try {
-    const start = performance.now();
-
-    await fetch("https://" + v,{
-      method:"GET",
-      mode:"no-cors"
-    });
-
-    const ms = Math.round(performance.now() - start);
-
-    $("siteIn").value="";
-    er.className="err ok";
-    er.textContent="Site added and checked immediately.";
-
-  } catch(x) {
-    $("siteIn").value="";
-    er.className="err ok";
-    er.textContent="Site added. Background monitoring is active.";
+  var r=await sb.from("sites").insert({url:v}).select().single();
+  if(r.error){
+    er.textContent=r.error.message;
+    return;
   }
 
+  $("siteIn").value="";
+  er.className="err ok";
+  er.textContent="Site added. Background monitoring is active.";
   refresh();
 });
 ui();
