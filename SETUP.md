@@ -9,6 +9,9 @@
    - `SUPABASE_URL` = the Project URL
    - `SUPABASE_SERVICE_KEY` = the `service_role` key (keep it secret; never put it in index.html)
 6. **Publish the site:** commit everything to your repo, then Settings > Pages > deploy from the `main` branch.
+7. **Enable instant checks on add:** Install the Supabase CLI and sign in with `supabase login`. From the repository root, deploy the authenticated check function:
+   `supabase functions deploy swift-function --project-ref ienoxjulgopijzovqoma`
+   The function checks ownership, measures the response, and saves the result. It uses Supabase's server-side service key; never put that key in `index.html`.
 7. **Test the checker:** Actions tab > "Check sites" > Run workflow.
 
 Users: Supabase > Authentication > Users. Sites and results: Table Editor > `sites` and `checks`
