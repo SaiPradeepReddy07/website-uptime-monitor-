@@ -2,11 +2,7 @@
 
 1. **Create a Supabase project** at supabase.com. It stores accounts, sites and check results.
 2. **Create the tables:** SQL Editor > New query > paste `supabase/schema.sql` > Run.
-3. **Configure authentication:** Authentication > Providers.
-   - **Email OTP:** Keep Email enabled and turn on **Confirm email**. In the **Confirm sign up** email template, include `{{ .Token }}` so new users can enter the six-digit code shown by the page. Set the project Site URL and allowed redirect URL to your published site.
-   - **Phone OTP:** Turn on the Phone provider and configure an SMS provider (such as Twilio) and its credentials/templates. SMS delivery depends on that provider and may incur charges.
-   - **Password reset:** Allow the published site URL in Auth redirect URLs so reset links return to this page.
-   Phone-based accounts are separate from email accounts unless you explicitly link their identities.
+3. **Sign-up emails (optional):** Authentication > Providers > Email. Turn off "Confirm email" for instant sign-up.
 4. **Connect the page:** Project Settings > API. Copy the Project URL and the `anon` key into the top of the script
    in `index.html` (`SUPABASE_URL` and `SUPABASE_ANON_KEY`).
 5. **Connect the manual checker:** in your GitHub repo go to Settings > Secrets and variables > Actions and add:
