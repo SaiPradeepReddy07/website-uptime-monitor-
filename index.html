@@ -132,28 +132,18 @@ html:root:root:root{--page:#06091a;--ink:#f1f4ff;--muted:#b4bfdc;--line:rgba(255
 
 <dialog id="dlg" aria-labelledby="dTitle">
   <h2 id="dTitle">Welcome</h2>
-  <div class="tabs" id="modeTabs" role="tablist" aria-label="Account action">
+  <div class="tabs" role="tablist">
     <button type="button" role="tab" id="tabIn" aria-selected="true">Sign in</button>
     <button type="button" role="tab" id="tabUp" aria-selected="false">Create account</button>
   </div>
-  <div class="tabs" id="methodTabs" role="tablist" aria-label="Sign-in method">
-    <button type="button" role="tab" id="methodEmail" aria-selected="true">Email</button>
-    <button type="button" role="tab" id="methodPhone" aria-selected="false">Phone</button>
-  </div>
   <form id="authForm" novalidate>
     <label class="field" id="nameRow" hidden><span>Name</span><input id="fName" autocomplete="name"></label>
-    <label class="field" id="emailRow"><span>Email</span><input id="fEmail" type="email" autocomplete="email"></label>
-    <label class="field" id="phoneRow" hidden><span>Phone number</span><input id="fPhone" type="tel" autocomplete="tel" placeholder="+1 555 123 4567"></label>
-    <label class="field" id="passwordRow"><span>Password</span><input id="fPass" type="password" autocomplete="current-password"></label>
-    <label class="field" id="codeRow" hidden><span>Verification code</span><input id="fCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
-    <label class="field" id="confirmPassRow" hidden><span>Confirm new password</span><input id="fPassConfirm" type="password" autocomplete="new-password"></label>
-    <button class="link" id="forgotBtn" type="button">Forgot password?</button>
+    <label class="field"><span>Email</span><input id="fEmail" type="email" autocomplete="email"></label>
+    <label class="field"><span>Password</span><input id="fPass" type="password" autocomplete="current-password"></label>
     <p class="err" id="authErr" role="alert"></p>
-    <p class="note" id="authNote" hidden></p>
     <div class="add"><button class="pill dark" id="submitBtn" type="submit">Sign in</button><button class="pill" style="background:transparent;color:var(--ink);border:1.5px solid var(--line)" type="button" id="closeBtn">Cancel</button></div>
-    <div class="add" id="resendRow" hidden><button class="link" id="resendBtn" type="button">Resend code</button></div>
   </form>
-  <p class="note">Email confirmation, SMS delivery, and password recovery are handled by Supabase Auth.</p>
+  <p class="note">Passwords are handled by Supabase Auth and are never stored in plain text.</p>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -169,56 +159,10 @@ var sb=(!/^YOUR_/.test(SUPABASE_URL)&&window.supabase)?supabase.createClient(SUP
 var me=null,sites=[],stat={},mode="in",poll=null;
 
 var dlg=$("dlg");
-var authMethod="email",authStep="form",pendingEmail="",pendingPhone="",pendingName="";
-function syncAuthForm(){
-  var form=authStep==="form",reset=authStep==="reset",resetSent=authStep==="reset-sent";
-  $("modeTabs").hidden=!form;$("methodTabs").hidden=!form;
-  $("nameRow").hidden=!(form&&mode==="up");
-  $("emailRow").hidden=authMethod!=="email"||reset||resetSent||authStep==="otp";
-  $("phoneRow").hidden=authMethod!=="phone"||!form;
-  $("passwordRow").hidden=authStep==="otp"||resetSent||(authMethod==="phone"&&form);
-  $("codeRow").hidden=authStep!=="otp";
-  $("confirmPassRow").hidden=!reset;
-  $("forgotBtn").hidden=!(form&&mode==="in"&&authMethod==="email");
-  $("resendRow").hidden=authStep!=="otp";
-  $("submitBtn").type="submit";
-  $("submitBtn").textContent=reset?"Update password":resetSent?"Back to sign in":authStep==="otp"?"Verify code":authMethod==="phone"?(mode==="up"?"Create account and send code":"Send SMS code"):mode==="in"?"Sign in":"Create account and send code";
-}
-function setMode(m){mode=m;authStep="form";$("dTitle").textContent="Welcome";$("authErr").textContent="";$("authNote").hidden=true;syncAuthForm()}
-function setAuthMethod(m){authMethod=m;authStep="form";$("methodEmail").setAttribute("aria-selected",m==="email");$("methodPhone").setAttribute("aria-selected",m==="phone");$("authErr").textContent="";$("authNote").hidden=true;syncAuthForm()}
-function openAuth(m){setMode(m);dlg.showModal();$(authMethod==="phone"?"fPhone":"fEmail").focus()}
-function showOtp(note){authStep="otp";$("authErr").textContent="";$("authNote").textContent=note;$("authNote").hidden=false;syncAuthForm();$("fCode").focus()}
+function setMode(m){mode=m;$("tabIn").setAttribute("aria-selected",m==="in");$("tabUp").setAttribute("aria-selected",m==="up");$("nameRow").hidden=m==="in";$("submitBtn").textContent=m==="in"?"Sign in":"Create account";$("fPass").autocomplete=m==="in"?"current-password":"new-password";$("authErr").textContent=""}
+function openAuth(m){setMode(m);dlg.showModal();$("fEmail").focus()}
 $("tabIn").onclick=function(){setMode("in")};$("tabUp").onclick=function(){setMode("up")};
-$("methodEmail").onclick=function(){setAuthMethod("email")};$("methodPhone").onclick=function(){setAuthMethod("phone")};
 $("closeBtn").onclick=function(){dlg.close()};
-$("forgotBtn").onclick=async function(){
-  if(!sb){$("authErr").textContent="Supabase Auth is not configured.";return}
-  var email=$("fEmail").value.trim().toLowerCase(),err=$("authErr");
-  err.textContent="";$("authNote").hidden=true;
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent="Enter your email address first.";return}
-  var btn=$("forgotBtn");btn.disabled=true;
-  try{
-    var r=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
-    if(r.error)throw r.error;
-    authStep="reset-sent";$("authErr").textContent="If an account uses that email, a password reset link has been sent.";
-    $("authNote").textContent="Open the link in your email to choose a new password.";$("authNote").hidden=false;
-    $("submitBtn").type="submit";syncAuthForm();
-  }catch(x){err.textContent=x.message||"Could not send a reset email. Try again."}
-  finally{btn.disabled=false}
-};
-$("resendBtn").onclick=async function(){
-  if(!sb)return;
-  var err=$("authErr");err.textContent="";
-  try{
-    var r=authMethod==="phone"
-      ?await sb.auth.signInWithOtp({phone:pendingPhone,options:{shouldCreateUser:mode==="up",data:{name:pendingName}}})
-      :mode==="up"
-        ?await sb.auth.resend({type:"signup",email:pendingEmail})
-        :await sb.auth.signInWithOtp({email:pendingEmail,options:{shouldCreateUser:false}});
-    if(r.error)throw r.error;
-    $("authNote").textContent="A new verification code was sent.";
-  }catch(x){err.textContent=x.message||"Could not resend the code. Try again."}
-};
 $("cta").onclick=function(){me?$("dashboard").scrollIntoView():openAuth("up")};
 $("gateBtn").onclick=function(){openAuth("in")};
 $("authBtn").onclick=async function(){if(!me){openAuth("in");return}try{await sb.auth.signOut({scope:"local"})}finally{me=null;sites=[];stat={};clearInterval(poll);ui();renderList()}};
@@ -226,57 +170,25 @@ $("authBtn").onclick=async function(){if(!me){openAuth("in");return}try{await sb
 $("authForm").addEventListener("submit",async function(e){
   e.preventDefault();var err=$("authErr");err.textContent="";
   if(!sb){err.textContent="Add your Supabase URL and key at the top of the script first. See SETUP.md.";return}
-  if(authStep==="reset-sent"){authStep="form";$("authNote").hidden=true;setMode("in");return}
-  var email=$("fEmail").value.trim().toLowerCase(),phone=$("fPhone").value.trim(),pw=$("fPass").value,name=$("fName").value.trim(),code=$("fCode").value.trim();
-  if(authStep==="otp"){
-    if(!code){err.textContent="Enter the verification code.";return}
-  }else if(authStep==="reset"){
-    if(pw.length<8){err.textContent="Use a password with at least 8 characters.";return}
-    if(pw!==$("fPassConfirm").value){err.textContent="The passwords do not match.";return}
-  }else if(authMethod==="email"){
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent="Enter a valid email address.";return}
-    if(pw.length<8){err.textContent="Use a password with at least 8 characters.";return}
-    if(mode==="up"&&!name){err.textContent="Enter your name.";return}
-  }else{
-    if(!/^\+[1-9]\d{7,14}$/.test(phone.replace(/[\s()-]/g,""))){err.textContent="Enter a phone number with country code, such as +15551234567.";return}
-    pendingPhone=phone.replace(/[\s()-]/g,"");
-    if(mode==="up"&&!name){err.textContent="Enter your name.";return}
-  }
+  var email=$("fEmail").value.trim().toLowerCase(),pw=$("fPass").value,name=$("fName").value.trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent="Enter a valid email address.";return}
+  if(pw.length<8){err.textContent="Use a password with at least 8 characters.";return}
+  if(mode==="up"&&!name){err.textContent="Enter your name.";return}
   var btn=$("submitBtn");btn.disabled=true;
   try{
-    if(authStep==="otp"){
-      var verified=authMethod==="email"
-        ?await sb.auth.verifyOtp({email:pendingEmail,token:code,type:"signup"})
-        :await sb.auth.verifyOtp({phone:pendingPhone,token:code,type:"sms"});
-      if(verified.error)throw verified.error;
-      if(!verified.data.session)throw new Error("The code was accepted but no session was created. Try signing in.");
-      dlg.close();$("fPass").value="";$("fCode").value="";$("dashboard").scrollIntoView();
-    }else if(authStep==="reset"){
-      var updated=await sb.auth.updateUser({password:pw});
-      if(updated.error)throw updated.error;
-      $("fPass").value="";$("fPassConfirm").value="";authStep="form";dlg.close();$("dashboard").scrollIntoView();
-    }else if(authMethod==="phone"){
-      pendingName=name;
-      var sent=await sb.auth.signInWithOtp({phone:pendingPhone,options:{shouldCreateUser:mode==="up",data:{name:name}}});
-      if(sent.error)throw sent.error;
-      showOtp("Enter the SMS code sent to "+pendingPhone+".");
-    }else if(mode==="up"){
-      pendingEmail=email;pendingName=name;
-      var created=await sb.auth.signUp({email:email,password:pw,options:{data:{name:name}}});
-      if(created.error)throw created.error;
-      if(created.data.session){
-        await sb.auth.signOut({scope:"local"});
-        throw new Error("Email confirmation must be enabled in Supabase before OTP sign-up can be enforced. In Authentication → Providers → Email, enable Confirm email and set the Confirm sign-up email template to include {{ .Token }}.");
-      }
-      showOtp("Enter the verification code sent to "+pendingEmail+".");
+    if(mode==="up"){
+      var r=await sb.auth.signUp({email:email,password:pw,options:{data:{name:name}}});
+      if(r.error){err.textContent=r.error.message;return}
+      if(!r.data.session){err.textContent="Check your email to confirm your account, then sign in.";return}
     }else{
-      var signed=await sb.auth.signInWithPassword({email:email,password:pw});
-      if(signed.error)throw signed.error;
-      dlg.close();$("fPass").value="";$("dashboard").scrollIntoView();
+      var r2=await sb.auth.signInWithPassword({email:email,password:pw});
+      if(r2.error){err.textContent=r2.error.message==="Invalid login credentials"?"Email or password is incorrect.":r2.error.message;return}
     }
-  }catch(x){err.textContent=x.message||"Couldn’t complete that request. Try again."}
+    dlg.close();$("fPass").value="";$("dashboard").scrollIntoView();
+  }catch(x){err.textContent="Couldn’t reach the server. Try again."}
   finally{btn.disabled=false}
 });
+
 function ui(){
   var on=!!me,nm=on?(me.user_metadata&&me.user_metadata.name)||me.email:"";
   $("authBtn").textContent=on?"Sign out":"Sign in";$("who").textContent=nm;
@@ -402,17 +314,8 @@ $("addForm").addEventListener("submit",async function(e){
 });
 ui();
 if(sb){
-  syncAuthForm();
   sb.auth.getSession().then(function(r){me=r.data.session?r.data.session.user:null;ui();refresh()});
-  sb.auth.onAuthStateChange(function(event,session){
-    me=session?session.user:null;
-    if(event==="PASSWORD_RECOVERY"){
-      authMethod="email";mode="in";authStep="reset";
-      $("dTitle").textContent="Choose a new password";
-      $("authErr").textContent="";$("authNote").hidden=true;syncAuthForm();dlg.showModal();$("fPass").focus();
-    }
-    ui();clearInterval(poll);if(me){refresh();poll=setInterval(refresh,30000)}else{sites=[];stat={}}
-  });
+  sb.auth.onAuthStateChange(function(_e,session){me=session?session.user:null;ui();clearInterval(poll);if(me){refresh();poll=setInterval(refresh,30000)}else{sites=[];stat={}}});
 }
 })();
 </script>
